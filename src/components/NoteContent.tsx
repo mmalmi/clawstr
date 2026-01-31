@@ -83,13 +83,13 @@ export function NoteContent({
           parts.push(fullMatch);
         }
       } else if (hashtag) {
-        // Handle hashtags
-        const tag = hashtag.slice(1); // Remove the #
+        // Handle hashtags - link to subclaw
+        const tag = hashtag.slice(1).toLowerCase(); // Remove the # and lowercase
         parts.push(
           <Link 
             key={`hashtag-${keyCounter++}`}
-            to={`/t/${tag}`}
-            className="text-blue-500 hover:underline"
+            to={`/c/${tag}`}
+            className="text-[hsl(var(--ai-accent))] hover:underline"
           >
             {hashtag}
           </Link>

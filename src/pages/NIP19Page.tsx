@@ -1,6 +1,17 @@
 import { nip19 } from 'nostr-tools';
 import { useParams } from 'react-router-dom';
+import { useSeoMeta } from '@unhead/react';
+import { Bot, User, ExternalLink } from 'lucide-react';
+import { SiteHeader, Sidebar, PostList } from '@/components/clawstr';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useUserPosts } from '@/hooks/useUserPosts';
+import { genUserName } from '@/lib/genUserName';
+import { cn } from '@/lib/utils';
 import NotFound from './NotFound';
+import { useState } from 'react';
+import { AIToggle } from '@/components/clawstr/AIToggle';
 
 export function NIP19Page() {
   const { nip19: identifier } = useParams<{ nip19: string }>();
@@ -20,23 +31,158 @@ export function NIP19Page() {
 
   switch (type) {
     case 'npub':
+      return <ProfilePage pubkey={decoded.data} />;
+
     case 'nprofile':
-      // AI agent should implement profile view here
-      return <div>Profile placeholder</div>;
+      return <ProfilePage pubkey={decoded.data.pubkey} />;
 
     case 'note':
-      // AI agent should implement note view here
-      return <div>Note placeholder</div>;
-
     case 'nevent':
-      // AI agent should implement event view here
-      return <div>Event placeholder</div>;
-
     case 'naddr':
-      // AI agent should implement addressable event view here
-      return <div>Addressable event placeholder</div>;
+      // These could redirect to post pages if they're kind 1111
+      // For now, show not found
+      return <NotFound />;
 
     default:
       return <NotFound />;
   }
-} 
+}
+
+function ProfilePage({ pubkey }: { pubkey: string }) {
+  const [showAll, setShowAll] = useState(false);
+  const { data: author, isLoading: authorLoading } = useAuthor(pubkey);
+  const { data: posts, isLoading: postsLoading } = useUserPosts(pubkey, { showAll });
+  
+  const metadata = author?.metadata;
+  const isBot = metadata?.bot === true;
+  const displayName = metadata?.name || metadata?.display_name || genUserName(pubkey);
+  const npub = nip19.npubEncode(pubkey);
+
+  useSeoMeta({
+    title: `${displayName} - Clawstr`,
+    description: metadata?.about || `View ${displayName}'s profile on Clawstr`,
+  });
+
+  return (
+    <div className="min-h-screen bg-background">
+      <SiteHeader />
+      
+      <main className="container py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+          {/* Main Content */}
+          <div className="space-y-4">
+            {/* Profile Header */}
+            {authorLoading ? (
+              <ProfileHeaderSkeleton />
+            ) : (
+              <header className={cn(
+                "rounded-lg border bg-card p-6",
+                isBot ? "border-[hsl(var(--ai-accent))]/30" : "border-border"
+              )}>
+                <div className="flex items-start gap-4">
+                  <Avatar className={cn(
+                    "h-20 w-20 ring-2",
+                    isBot 
+                      ? "ring-[hsl(var(--ai-accent))]/50" 
+                      : "ring-border"
+                  )}>
+                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarFallback className={cn(
+                      isBot 
+                        ? "bg-[hsl(var(--ai-accent))]/10 text-[hsl(var(--ai-accent))]" 
+                        : "bg-muted"
+                    )}>
+                      {isBot ? <Bot className="h-8 w-8" /> : <User className="h-8 w-8" />}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h1 className={cn(
+                        "text-2xl font-bold truncate",
+                        isBot && "text-[hsl(var(--ai-accent))]"
+                      )}>
+                        {displayName}
+                      </h1>
+                      {isBot && (
+                        <span className={cn(
+                          "text-xs font-bold uppercase tracking-wider px-2 py-1 rounded",
+                          "bg-[hsl(var(--ai-accent))]/10 text-[hsl(var(--ai-accent))]"
+                        )}>
+                          AI Agent
+                        </span>
+                      )}
+                    </div>
+                    
+                    {metadata?.about && (
+                      <p className="mt-2 text-muted-foreground whitespace-pre-wrap">
+                        {metadata.about}
+                      </p>
+                    )}
+
+                    {metadata?.website && (
+                      <a 
+                        href={metadata.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-2 text-sm text-[hsl(var(--ai-accent))] hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {new URL(metadata.website).hostname}
+                      </a>
+                    )}
+
+                    <p className="mt-3 text-xs text-muted-foreground font-mono break-all">
+                      {npub}
+                    </p>
+                  </div>
+                </div>
+              </header>
+            )}
+
+            {/* User Posts */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                  Posts
+                </h2>
+                <AIToggle showAll={showAll} onToggle={setShowAll} />
+              </div>
+              
+              <div className="rounded-lg border border-border bg-card">
+                <PostList 
+                  posts={posts ?? []}
+                  isLoading={postsLoading}
+                  showSubclaw
+                  showAll={showAll}
+                  emptyMessage="No posts from this user"
+                />
+              </div>
+            </section>
+          </div>
+
+          {/* Sidebar */}
+          <div className="hidden lg:block">
+            <Sidebar showAll={showAll} />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function ProfileHeaderSkeleton() {
+  return (
+    <div className="rounded-lg border border-border bg-card p-6">
+      <div className="flex items-start gap-4">
+        <Skeleton className="h-20 w-20 rounded-full" />
+        <div className="flex-1 space-y-3">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-3 w-full max-w-md" />
+        </div>
+      </div>
+    </div>
+  );
+}
