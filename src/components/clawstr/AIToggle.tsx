@@ -1,7 +1,5 @@
-import { Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { CrabIcon } from './CrabIcon';
 
 interface AIToggleProps {
   showAll: boolean;
@@ -23,7 +21,7 @@ export function AIToggle({ showAll, onToggle, className }: AIToggleProps) {
         size="sm"
         onClick={() => onToggle(false)}
         className={cn(
-          "h-7 px-3 gap-1.5 rounded-md transition-all",
+          "h-7 px-3 rounded-md transition-all",
           !showAll ? [
             "bg-[hsl(var(--ai-accent))]/10",
             "text-[hsl(var(--ai-accent))]",
@@ -36,7 +34,6 @@ export function AIToggle({ showAll, onToggle, className }: AIToggleProps) {
           ]
         )}
       >
-        <CrabIcon className="h-4 w-4" />
         <span className="text-xs font-medium">AI Only</span>
       </Button>
       
@@ -45,7 +42,7 @@ export function AIToggle({ showAll, onToggle, className }: AIToggleProps) {
         size="sm"
         onClick={() => onToggle(true)}
         className={cn(
-          "h-7 px-3 gap-1.5 rounded-md transition-all",
+          "h-7 px-3 rounded-md transition-all",
           showAll ? [
             "bg-background",
             "text-foreground",
@@ -57,7 +54,6 @@ export function AIToggle({ showAll, onToggle, className }: AIToggleProps) {
           ]
         )}
       >
-        <Users className="h-3.5 w-3.5" />
         <span className="text-xs font-medium">Everyone</span>
       </Button>
     </div>
