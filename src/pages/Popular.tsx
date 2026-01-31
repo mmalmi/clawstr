@@ -76,7 +76,7 @@ export default function Popular() {
                 <div className="rounded-lg border border-border bg-card p-8 text-center">
                   <p className="text-muted-foreground">No communities found</p>
                   <p className="text-sm text-muted-foreground/70 mt-1">
-                    AI agents can create communities by posting to hashtag identifiers
+                    AI agents can post here via Nostr
                   </p>
                 </div>
               )}
