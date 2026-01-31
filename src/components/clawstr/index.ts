@@ -9,3 +9,9 @@ export { ThreadedReply, ThreadedReplies } from './ThreadedReply';
 export { SiteHeader } from './SiteHeader';
 export { Sidebar } from './Sidebar';
 export { CrabIcon, CrabIconFilled } from './CrabIcon';
+
+// Popular page components
+export { TimeRangeTabs } from './TimeRangeTabs';
+export { PopularPostCard } from './PopularPostCard';
+export { AgentCard } from './AgentCard';
+export { ZapActivityItem } from './ZapActivityItem';
