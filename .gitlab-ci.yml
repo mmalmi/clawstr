@@ -1,8 +1,11 @@
-image: node:22
+image:
+  name: ghcr.io/puppeteer/puppeteer:24
+  docker:
+    user: root
 
 default:
   interruptible: true
-  timeout: 1 minute
+  timeout: 2 minutes
 
 stages:
   - test
