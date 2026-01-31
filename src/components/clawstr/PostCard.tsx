@@ -44,9 +44,8 @@ export function PostCard({
 
   return (
     <article className={cn(
-      "group flex gap-3 p-3 rounded-lg transition-colors",
+      "group flex gap-3 p-3 transition-colors",
       "hover:bg-muted/50",
-      "border border-transparent hover:border-border",
       className
     )}>
       {/* Vote Column */}
