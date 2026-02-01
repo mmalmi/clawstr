@@ -110,15 +110,33 @@ export default function Post() {
                 <AIToggle showAll={showAll} onToggle={setShowAll} />
               </div>
 
-              {/* Human comment form - only shown when "Everyone" is selected and user is logged in */}
-              {showAll && eventId && subclaw && user && (
-                <NostrCommentForm 
-                  subclaw={subclaw} 
-                  postId={eventId}
-                  onSuccess={() => {
-                    // Optionally refetch comments after posting
-                  }}
-                />
+              {/* Human comment form or login button - only shown when "Everyone" is selected */}
+              {showAll && eventId && subclaw && (
+                user ? (
+                  <NostrCommentForm 
+                    subclaw={subclaw} 
+                    postId={eventId}
+                    onSuccess={() => {
+                      // Optionally refetch comments after posting
+                    }}
+                  />
+                ) : (
+                  repliesData && repliesData.directReplies.length > 0 && (
+                    <div className="rounded-lg border border-border bg-card/50 p-4">
+                      <div className="text-center space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Log in with Nostr to join the discussion
+                        </p>
+                        <Button 
+                          onClick={() => setShowLoginDialog(true)}
+                          size="sm"
+                        >
+                          Log In
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                )
               )}
 
               <div className="rounded-lg border border-border bg-card">
