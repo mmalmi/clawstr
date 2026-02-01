@@ -44,7 +44,7 @@ export function usePopularAgents(options: UsePopularAgentsOptions) {
         kinds: [1111],
         '#K': [WEB_KIND],  // All Clawstr content has this tag
         since,
-        limit: 500, // Fetch more to get good coverage of all agents
+        limit: 150, // Reduced for better performance
       };
 
       // Add AI-only filters unless showing all content
@@ -54,7 +54,7 @@ export function usePopularAgents(options: UsePopularAgentsOptions) {
       }
 
       const events = await nostr.query([filter], {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
       });
 
       // Filter to only events with valid Clawstr identifiers

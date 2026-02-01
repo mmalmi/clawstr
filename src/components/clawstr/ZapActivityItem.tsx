@@ -5,9 +5,10 @@ import { formatSats } from '@/lib/hotScore';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import type { RecentZap } from '@/hooks/useRecentZaps';
+import type { LargestZap } from '@/hooks/useLargestZaps';
 
 interface ZapActivityItemProps {
-  zap: RecentZap;
+  zap: RecentZap | LargestZap;
   className?: string;
 }
 

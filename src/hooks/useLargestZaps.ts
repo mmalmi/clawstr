@@ -3,8 +3,9 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { extractSatsFromZap, getZapSender, getZapRecipient } from './useBatchZaps';
 import { AI_LABEL, WEB_KIND, isTopLevelPost, isClawstrIdentifier } from '@/lib/clawstr';
+import { getTimeRangeSince, type TimeRange } from '@/lib/hotScore';
 
-export interface RecentZap {
+export interface LargestZap {
   zapReceipt: NostrEvent;
   targetEventId: string | null;
   senderPubkey: string | null;
@@ -13,31 +14,39 @@ export interface RecentZap {
   timestamp: number;
 }
 
-interface UseRecentZapsOptions {
+interface UseLargestZapsOptions {
   /** Maximum number of zaps to return */
   limit?: number;
   /** Show all content (AI + human) instead of AI-only */
   showAll?: boolean;
+  /** Time range to consider */
+  timeRange?: TimeRange;
 }
 
 /**
- * Fetch recent zap activity for Clawstr posts only.
+ * Fetch largest zaps for Clawstr posts, sorted by amount.
  * 
  * Fetches posts and zaps in a single query function to avoid stale closure issues.
  */
-export function useRecentZaps(options: UseRecentZapsOptions = {}) {
+export function useLargestZaps(options: UseLargestZapsOptions = {}) {
   const { nostr } = useNostr();
-  const { limit = 10, showAll = false } = options;
+  const { limit = 10, showAll = false, timeRange = '7d' } = options;
 
   return useQuery({
-    queryKey: ['clawstr', 'recent-zaps', limit, showAll],
+    queryKey: ['clawstr', 'largest-zaps', limit, timeRange, showAll],
     queryFn: async ({ signal }) => {
-      // Step 1: Fetch recent posts
+      const since = getTimeRangeSince(timeRange);
+
+      // Step 1: Fetch posts within time range
       const postFilter: NostrFilter = {
         kinds: [1111],
         '#K': [WEB_KIND],
-        limit: 50,
+        limit: 100,
       };
+
+      if (since) {
+        postFilter.since = since;
+      }
 
       if (!showAll) {
         postFilter['#l'] = [AI_LABEL.value];
@@ -62,24 +71,25 @@ export function useRecentZaps(options: UseRecentZapsOptions = {}) {
       const postIds = validPosts.map((p) => p.id);
 
       // Step 2: Fetch zaps for these posts
+      const zapFilter: NostrFilter = { 
+        kinds: [9735], 
+        '#e': postIds,
+        limit: 100,
+      };
+
+      if (since) {
+        zapFilter.since = since;
+      }
+
       const zapReceipts = await nostr.query(
-        [{ 
-          kinds: [9735], 
-          '#e': postIds,
-          limit: limit * 3,
-        }],
+        [zapFilter],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) }
       );
 
-      // Sort by created_at descending (most recent first)
-      const sortedZaps = zapReceipts.sort((a, b) => b.created_at - a.created_at);
+      // Process and collect all valid zaps
+      const allZaps: LargestZap[] = [];
 
-      // Process zaps
-      const recentZaps: RecentZap[] = [];
-
-      for (const zap of sortedZaps) {
-        if (recentZaps.length >= limit) break;
-
+      for (const zap of zapReceipts) {
         const eTag = zap.tags.find(([name]) => name === 'e');
         const targetEventId = eTag?.[1] ?? null;
 
@@ -91,7 +101,7 @@ export function useRecentZaps(options: UseRecentZapsOptions = {}) {
 
         if (amount === 0) continue;
 
-        recentZaps.push({
+        allZaps.push({
           zapReceipt: zap,
           targetEventId,
           senderPubkey,
@@ -101,8 +111,11 @@ export function useRecentZaps(options: UseRecentZapsOptions = {}) {
         });
       }
 
-      return recentZaps;
+      // Sort by amount descending (largest first)
+      allZaps.sort((a, b) => b.amount - a.amount);
+
+      return allZaps.slice(0, limit);
     },
-    staleTime: 30 * 1000,
+    staleTime: 60 * 1000,
   });
 }

@@ -3,7 +3,6 @@ import { useSeoMeta } from '@unhead/react';
 import { Flame, TrendingUp, Users, Zap } from 'lucide-react';
 import { 
   SiteHeader, 
-  Sidebar, 
   AIToggle, 
   SubclawCardCompact,
   TimeRangeTabs,
@@ -14,7 +13,7 @@ import {
 import { usePopularSubclaws } from '@/hooks/usePopularSubclaws';
 import { usePopularPosts } from '@/hooks/usePopularPosts';
 import { usePopularAgents } from '@/hooks/usePopularAgents';
-import { useRecentZaps } from '@/hooks/useRecentZaps';
+import { useLargestZaps } from '@/hooks/useLargestZaps';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TimeRange } from '@/lib/hotScore';
@@ -38,12 +37,13 @@ export default function Popular() {
   
   const { data: subclaws, isLoading: subclawsLoading } = usePopularSubclaws({ 
     showAll, 
-    limit: 5,
+    limit: 100,
   });
   
-  const { data: recentZaps, isLoading: zapsLoading } = useRecentZaps({ 
-    limit: 8,
+  const { data: largestZaps, isLoading: largestZapsLoading } = useLargestZaps({ 
+    limit: 10,
     showAll,
+    timeRange,
   });
 
   useSeoMeta({
@@ -173,12 +173,12 @@ export default function Popular() {
               </CardContent>
             </Card>
 
-            {/* Hot Communities */}
+            {/* Popular Communities */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Flame className="h-4 w-4" />
-                  Hot Communities
+                  Popular Communities
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
@@ -214,16 +214,16 @@ export default function Popular() {
               </CardContent>
             </Card>
 
-            {/* Recent Zaps */}
+            {/* Largest Zaps */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Zap className="h-4 w-4 text-amber-500" />
-                  Recent Zaps
+                  Largest Zaps
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                {zapsLoading ? (
+                {largestZapsLoading ? (
                   <div className="space-y-2">
                     {[...Array(5)].map((_, i) => (
                       <div key={i} className="flex items-start gap-2 py-2">
@@ -235,9 +235,9 @@ export default function Popular() {
                       </div>
                     ))}
                   </div>
-                ) : recentZaps && recentZaps.length > 0 ? (
+                ) : largestZaps && largestZaps.length > 0 ? (
                   <div className="divide-y divide-border">
-                    {recentZaps.map((zap) => (
+                    {largestZaps.map((zap) => (
                       <ZapActivityItem
                         key={zap.zapReceipt.id}
                         zap={zap}
@@ -246,16 +246,11 @@ export default function Popular() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No recent zaps
+                    No zaps found
                   </p>
                 )}
               </CardContent>
             </Card>
-
-            {/* Standard Sidebar */}
-            <div className="hidden lg:block">
-              <Sidebar showAll={showAll} />
-            </div>
           </div>
         </div>
       </main>

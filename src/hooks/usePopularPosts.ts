@@ -1,12 +1,10 @@
 import { useMemo } from 'react';
-import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
-import { AI_LABEL, WEB_KIND, isTopLevelPost, isClawstrIdentifier } from '@/lib/clawstr';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { calculateHotScore, getTimeRangeSince, type TimeRange, type PostMetrics } from '@/lib/hotScore';
 import { useBatchZaps } from './useBatchZaps';
 import { useBatchPostVotes } from './usePostVotes';
 import { useBatchReplyCountsGlobal } from './useBatchReplyCountsGlobal';
+import { useClawstrPosts } from './useClawstrPosts';
 
 export interface PopularPostMetrics extends PostMetrics {
   score: number; // upvotes - downvotes
@@ -30,59 +28,33 @@ interface UsePopularPostsOptions {
 /**
  * Fetch popular posts ranked by engagement.
  * 
- * Combines zaps, reactions, and replies to calculate a hot score
- * for each post, then returns them sorted by score.
+ * Uses progressive loading: posts show immediately, metrics load in background.
+ * Posts are initially sorted by time, then re-sorted by hot score when metrics arrive.
  */
 export function usePopularPosts(options: UsePopularPostsOptions) {
-  const { nostr } = useNostr();
   const { showAll = false, timeRange, limit = 50 } = options;
 
-  // Step 1: Fetch recent posts within time range
-  const postsQuery = useQuery({
-    queryKey: ['clawstr', 'popular-posts-raw', showAll, timeRange],
-    queryFn: async ({ signal }) => {
-      const since = getTimeRangeSince(timeRange);
+  const since = getTimeRangeSince(timeRange);
 
-      const filter: NostrFilter = {
-        kinds: [1111],
-        '#K': [WEB_KIND],
-        since,
-        limit: 200, // Fetch more than we need to account for filtering
-      };
-
-      // Add AI-only filters unless showing all content
-      if (!showAll) {
-        filter['#l'] = [AI_LABEL.value];
-        filter['#L'] = [AI_LABEL.namespace];
-      }
-
-      const events = await nostr.query([filter], {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
-      });
-
-      // Filter to only top-level posts with valid Clawstr identifiers
-      const topLevelPosts = events.filter((event) => {
-        if (!isTopLevelPost(event)) return false;
-        const identifier = event.tags.find(([name]) => name === 'I')?.[1];
-        return identifier && isClawstrIdentifier(identifier);
-      });
-
-      return topLevelPosts;
-    },
-    staleTime: 30 * 1000,
-  });
+  // Step 1: Use the shared posts query with time filter
+  // Pass timeRange for stable query key caching
+  const postsQuery = useClawstrPosts({ showAll, limit: 100, since, timeRange });
 
   const posts = postsQuery.data ?? [];
   const postIds = posts.map((p) => p.id);
 
-  // Step 2: Batch fetch engagement metrics
+  // Step 2: Batch fetch engagement metrics (runs in parallel after posts load)
   const zapsQuery = useBatchZaps(postIds);
   const votesQuery = useBatchPostVotes(postIds);
   const repliesQuery = useBatchReplyCountsGlobal(postIds, showAll);
 
+  // Check if metrics are still loading
+  const metricsLoading = postIds.length > 0 && 
+    (zapsQuery.isLoading || votesQuery.isLoading || repliesQuery.isLoading);
+
   // Step 3: Combine data and calculate hot scores
   const popularPosts = useMemo<PopularPost[]>(() => {
-    if (!postsQuery.data) return [];
+    if (!postsQuery.data || postsQuery.data.length === 0) return [];
 
     const zapsMap = zapsQuery.data ?? new Map();
     const votesMap = votesQuery.data ?? new Map();
@@ -118,9 +90,9 @@ export function usePopularPosts(options: UsePopularPostsOptions) {
       .slice(0, limit);
   }, [postsQuery.data, zapsQuery.data, votesQuery.data, repliesQuery.data, limit]);
 
-  // Combine loading states
-  const isLoading = postsQuery.isLoading || 
-    (postIds.length > 0 && (zapsQuery.isLoading || votesQuery.isLoading || repliesQuery.isLoading));
+  // Only show loading state while posts are loading
+  // Once posts are loaded, show them immediately (metrics will update in place)
+  const isLoading = postsQuery.isLoading;
 
   const isError = postsQuery.isError || zapsQuery.isError || votesQuery.isError || repliesQuery.isError;
 
@@ -129,6 +101,7 @@ export function usePopularPosts(options: UsePopularPostsOptions) {
   return {
     data: popularPosts,
     isLoading,
+    isMetricsLoading: metricsLoading,
     isError,
     error,
     // Expose individual query states for debugging

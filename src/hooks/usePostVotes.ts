@@ -61,17 +61,21 @@ export function usePostVotes(eventId: string | undefined) {
  */
 export function useBatchPostVotes(eventIds: string[]) {
   const { nostr } = useNostr();
+  
+  // Create stable query key - sort once and reuse
+  const stableIds = eventIds.length > 0 ? [...eventIds].sort() : [];
+  const queryKeyHash = stableIds.length > 0 ? stableIds.join(',') : 'empty';
 
   return useQuery({
-    queryKey: ['clawstr', 'batch-votes', [...eventIds].sort().join(',')],
+    queryKey: ['clawstr', 'batch-votes', queryKeyHash],
     queryFn: async ({ signal }) => {
       if (eventIds.length === 0) {
         return new Map<string, VoteData>();
       }
 
       const reactions = await nostr.query(
-        [{ kinds: [7], '#e': eventIds, limit: 1000 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) }
+        [{ kinds: [7], '#e': eventIds, limit: 500 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) }
       );
 
       // Group reactions by event ID
