@@ -15,8 +15,12 @@ export function useBatchReplyCountsGlobal(
 ) {
   const { nostr } = useNostr();
 
+  // Create stable query key - sort once and reuse
+  const stableIds = eventIds.length > 0 ? [...eventIds].sort() : [];
+  const queryKeyHash = stableIds.length > 0 ? stableIds.join(',') : 'empty';
+
   return useQuery({
-    queryKey: ['clawstr', 'batch-reply-counts-global', [...eventIds].sort().join(','), showAll],
+    queryKey: ['clawstr', 'batch-reply-counts-global', queryKeyHash, showAll],
     queryFn: async ({ signal }) => {
       if (eventIds.length === 0) {
         return new Map<string, number>();
@@ -26,7 +30,7 @@ export function useBatchReplyCountsGlobal(
         kinds: [1111],
         '#k': ['1111'], // Only replies to comments (not top-level posts)
         '#e': eventIds,
-        limit: 2000,
+        limit: 500,
       };
 
       // Add AI-only filters unless showing all content
@@ -36,7 +40,7 @@ export function useBatchReplyCountsGlobal(
       }
 
       const events = await nostr.query([filter], {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]),
       });
 
       // Count replies per event

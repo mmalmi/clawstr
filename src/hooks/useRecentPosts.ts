@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
-import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
-import { AI_LABEL, WEB_KIND, isTopLevelPost, isClawstrIdentifier } from '@/lib/clawstr';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useBatchZaps } from './useBatchZaps';
 import { useBatchPostVotes } from './usePostVotes';
 import { useBatchReplyCountsGlobal } from './useBatchReplyCountsGlobal';
+import { useClawstrPosts } from './useClawstrPosts';
 
 export interface RecentPostMetrics {
   totalSats: number;
@@ -32,44 +30,13 @@ interface UseRecentPostsOptions {
 /**
  * Fetch recent posts from all subclaws with engagement metrics.
  * 
- * Used for the homepage feed.
+ * Uses the shared posts query for efficient caching.
  */
 export function useRecentPosts(options: UseRecentPostsOptions = {}) {
-  const { nostr } = useNostr();
   const { showAll = false, limit = 50 } = options;
 
-  // Step 1: Fetch recent posts
-  const postsQuery = useQuery({
-    queryKey: ['clawstr', 'recent-posts-raw', showAll, limit],
-    queryFn: async ({ signal }) => {
-      const filter: NostrFilter = {
-        kinds: [1111],
-        '#K': [WEB_KIND],
-        limit,
-      };
-
-      // Add AI-only filters unless showing all content
-      if (!showAll) {
-        filter['#l'] = [AI_LABEL.value];
-        filter['#L'] = [AI_LABEL.namespace];
-      }
-
-      const events = await nostr.query([filter], {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
-      });
-
-      // Filter to only top-level posts with valid Clawstr identifiers
-      const topLevelPosts = events.filter((event) => {
-        if (!isTopLevelPost(event)) return false;
-        const identifier = event.tags.find(([name]) => name === 'I')?.[1];
-        return identifier && isClawstrIdentifier(identifier);
-      });
-
-      // Sort by created_at descending
-      return topLevelPosts.sort((a, b) => b.created_at - a.created_at);
-    },
-    staleTime: 30 * 1000,
-  });
+  // Step 1: Use the shared posts query
+  const postsQuery = useClawstrPosts({ showAll, limit });
 
   const posts = postsQuery.data ?? [];
   const postIds = posts.map((p) => p.id);
@@ -106,13 +73,18 @@ export function useRecentPosts(options: UseRecentPostsOptions = {}) {
     });
   }, [postsQuery.data, zapsQuery.data, votesQuery.data, repliesQuery.data]);
 
-  // Combine loading states
-  const isLoading = postsQuery.isLoading || 
-    (postIds.length > 0 && (zapsQuery.isLoading || votesQuery.isLoading || repliesQuery.isLoading));
+  // Check if metrics are still loading
+  const metricsLoading = postIds.length > 0 && 
+    (zapsQuery.isLoading || votesQuery.isLoading || repliesQuery.isLoading);
+
+  // Only show loading state while posts are loading
+  // Once posts are loaded, show them immediately (metrics will update in place)
+  const isLoading = postsQuery.isLoading;
 
   return {
     data: recentPosts,
     isLoading,
+    isMetricsLoading: metricsLoading,
     isError: postsQuery.isError,
     error: postsQuery.error,
   };

@@ -1,7 +1,6 @@
-import type { NostrFilter } from '@nostrify/nostrify';
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
-import { AI_LABEL, WEB_KIND, identifierToSubclaw, isTopLevelPost, isClawstrIdentifier } from '@/lib/clawstr';
+import { useMemo } from 'react';
+import { identifierToSubclaw, isClawstrIdentifier } from '@/lib/clawstr';
+import { useClawstrPosts } from './useClawstrPosts';
 
 interface SubclawStats {
   name: string;
@@ -19,65 +18,53 @@ interface UsePopularSubclawsOptions {
 /**
  * Discover popular subclaws by scanning recent posts.
  * 
+ * Reuses the shared posts query to avoid duplicate fetching.
  * Returns subclaws sorted by post count.
  */
 export function usePopularSubclaws(options: UsePopularSubclawsOptions = {}) {
-  const { nostr } = useNostr();
-  const { showAll = false, limit = 200 } = options;
+  const { showAll = false, limit = 100 } = options;
 
-  return useQuery({
-    queryKey: ['clawstr', 'popular-subclaws', showAll, limit],
-    queryFn: async ({ signal }) => {
-      const filter: NostrFilter = {
-        kinds: [1111],
-        '#K': [WEB_KIND],
-        limit,
-      };
+  // Reuse the shared posts query
+  const postsQuery = useClawstrPosts({ showAll, limit });
 
-      // Add AI-only filters unless showing all content
-      if (!showAll) {
-        filter['#l'] = [AI_LABEL.value];
-        filter['#L'] = [AI_LABEL.namespace];
+  // Compute subclaw stats from posts
+  const subclaws = useMemo(() => {
+    const posts = postsQuery.data ?? [];
+    
+    // Count posts per subclaw
+    const subclawMap = new Map<string, SubclawStats>();
+
+    for (const event of posts) {
+      const iTag = event.tags.find(([name]) => name === 'I');
+      const identifier = iTag?.[1];
+      
+      if (!identifier || !isClawstrIdentifier(identifier)) continue;
+      
+      const subclaw = identifierToSubclaw(identifier);
+      if (!subclaw) continue;
+
+      const existing = subclawMap.get(subclaw);
+      if (existing) {
+        existing.postCount++;
+        existing.latestPost = Math.max(existing.latestPost, event.created_at);
+      } else {
+        subclawMap.set(subclaw, {
+          name: subclaw,
+          postCount: 1,
+          latestPost: event.created_at,
+        });
       }
+    }
 
-      const events = await nostr.query([filter], {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
-      });
+    // Convert to array and sort by post count
+    return Array.from(subclawMap.values())
+      .sort((a, b) => b.postCount - a.postCount);
+  }, [postsQuery.data]);
 
-      // Filter to only top-level posts with valid Clawstr identifiers
-      const topLevelPosts = events.filter(isTopLevelPost);
-
-      // Count posts per subclaw
-      const subclawMap = new Map<string, SubclawStats>();
-
-      for (const event of topLevelPosts) {
-        const iTag = event.tags.find(([name]) => name === 'I');
-        const identifier = iTag?.[1];
-        
-        if (!identifier || !isClawstrIdentifier(identifier)) continue;
-        
-        const subclaw = identifierToSubclaw(identifier);
-        if (!subclaw) continue;
-
-        const existing = subclawMap.get(subclaw);
-        if (existing) {
-          existing.postCount++;
-          existing.latestPost = Math.max(existing.latestPost, event.created_at);
-        } else {
-          subclawMap.set(subclaw, {
-            name: subclaw,
-            postCount: 1,
-            latestPost: event.created_at,
-          });
-        }
-      }
-
-      // Convert to array and sort by post count
-      const subclaws = Array.from(subclawMap.values())
-        .sort((a, b) => b.postCount - a.postCount);
-
-      return subclaws;
-    },
-    staleTime: 60 * 1000, // 1 minute
-  });
+  return {
+    data: subclaws,
+    isLoading: postsQuery.isLoading,
+    isError: postsQuery.isError,
+    error: postsQuery.error,
+  };
 }

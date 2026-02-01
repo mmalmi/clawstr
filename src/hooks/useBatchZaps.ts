@@ -67,9 +67,13 @@ function extractSatsFromZap(zap: NostrEvent): number {
  */
 export function useBatchZaps(eventIds: string[]) {
   const { nostr } = useNostr();
+  
+  // Create stable query key - sort once and reuse
+  const stableIds = eventIds.length > 0 ? [...eventIds].sort() : [];
+  const queryKeyHash = stableIds.length > 0 ? stableIds.join(',') : 'empty';
 
   return useQuery({
-    queryKey: ['clawstr', 'batch-zaps', [...eventIds].sort().join(',')],
+    queryKey: ['clawstr', 'batch-zaps', queryKeyHash],
     queryFn: async ({ signal }) => {
       if (eventIds.length === 0) {
         return new Map<string, ZapData>();
@@ -77,8 +81,8 @@ export function useBatchZaps(eventIds: string[]) {
 
       // Query all zap receipts for these events
       const zapReceipts = await nostr.query(
-        [{ kinds: [9735], '#e': eventIds, limit: 2000 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) }
+        [{ kinds: [9735], '#e': eventIds, limit: 500 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) }
       );
 
       // Initialize map with all event IDs

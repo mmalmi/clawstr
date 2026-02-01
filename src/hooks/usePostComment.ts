@@ -32,7 +32,8 @@ export function usePostComment() {
         tags.push(['E', root.id]);
       }
       if (root instanceof URL) {
-        tags.push(['K', root.hostname]);
+        // NIP-73: URLs use 'web' as the kind value
+        tags.push(['K', 'web']);
       } else {
         tags.push(['K', root.kind.toString()]);
         tags.push(['P', root.pubkey]);
@@ -50,7 +51,8 @@ export function usePostComment() {
           tags.push(['e', reply.id]);
         }
         if (reply instanceof URL) {
-          tags.push(['k', reply.hostname]);
+          // NIP-73: URLs use 'web' as the kind value
+          tags.push(['k', 'web']);
         } else {
           tags.push(['k', reply.kind.toString()]);
           tags.push(['p', reply.pubkey]);
@@ -67,7 +69,8 @@ export function usePostComment() {
           tags.push(['e', root.id]);
         }
         if (root instanceof URL) {
-          tags.push(['k', root.hostname]);
+          // NIP-73: URLs use 'web' as the kind value
+          tags.push(['k', 'web']);
         } else {
           tags.push(['k', root.kind.toString()]);
           tags.push(['p', root.pubkey]);
