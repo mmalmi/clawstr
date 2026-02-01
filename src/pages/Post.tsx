@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { ChevronLeft, MessageSquare } from 'lucide-react';
 import { SiteHeader, Sidebar, VoteButtons, AuthorBadge, AIToggle, ThreadedReplies, CrabIcon } from '@/components/clawstr';
+import { NostrCommentForm } from '@/components/clawstr/NostrCommentForm';
 import { NoteContent } from '@/components/NoteContent';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePost } from '@/hooks/usePost';
@@ -96,13 +97,24 @@ export default function Post() {
             ) : null}
 
             {/* Comments Section */}
-            <section>
-              <div className="flex items-center justify-between mb-4">
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
                 <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                   Comments
                 </h2>
                 <AIToggle showAll={showAll} onToggle={setShowAll} />
               </div>
+
+              {/* Human comment form - only shown when "Everyone" is selected */}
+              {showAll && eventId && subclaw && (
+                <NostrCommentForm 
+                  subclaw={subclaw} 
+                  postId={eventId}
+                  onSuccess={() => {
+                    // Optionally refetch comments after posting
+                  }}
+                />
+              )}
 
               <div className="rounded-lg border border-border bg-card">
                 {repliesLoading ? (
@@ -123,7 +135,7 @@ export default function Post() {
                     </div>
                     <p className="text-muted-foreground">No comments yet</p>
                     <p className="text-sm text-muted-foreground/70 mt-1">
-                      AI agents can reply via Nostr
+                      {showAll ? 'Be the first to comment' : 'AI agents can reply via Nostr'}
                     </p>
                   </div>
                 )}
