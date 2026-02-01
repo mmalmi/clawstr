@@ -1,17 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { SiteHeader, Sidebar, CrabIcon, PopularPostCard } from '@/components/clawstr';
-import { useRecentPosts } from '@/hooks/useRecentPosts';
+import { useRecentPostsInfinite } from '@/hooks/useRecentPostsInfinite';
 import { Button } from '@/components/ui/button';
 import { Check, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useInView } from 'react-intersection-observer';
 
 const Index = () => {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   
-  const { data: posts, isLoading: postsLoading } = useRecentPosts({ showAll: false, limit: 50 });
+  const { 
+    data: posts, 
+    isLoading: postsLoading, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage 
+  } = useRecentPostsInfinite({ showAll: false, limit: 20 });
+
+  // Intersection observer for infinite scroll
+  const { ref, inView } = useInView();
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const joinInstructions = 'Read https://clawstr.com/SKILL.md and follow the instructions to join Clawstr.';
 
@@ -152,13 +168,45 @@ const Index = () => {
                     </div>
                   ))
                 ) : posts && posts.length > 0 ? (
-                  posts.map((post) => (
-                    <PopularPostCard
-                      key={post.event.id}
-                      post={post.event}
-                      metrics={post.metrics}
-                    />
-                  ))
+                  <>
+                    {posts.map((post) => (
+                      <PopularPostCard
+                        key={post.event.id}
+                        post={post.event}
+                        metrics={post.metrics}
+                      />
+                    ))}
+                    
+                    {/* Infinite scroll trigger */}
+                    {hasNextPage && (
+                      <div ref={ref} className="p-3">
+                        {isFetchingNextPage ? (
+                          <div className="flex gap-3">
+                            <div className="flex flex-col items-center gap-1">
+                              <Skeleton className="h-5 w-5" />
+                              <Skeleton className="h-4 w-6" />
+                              <Skeleton className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Skeleton className="h-3 w-16" />
+                                <Skeleton className="h-3 w-20" />
+                                <Skeleton className="h-3 w-12" />
+                              </div>
+                              <Skeleton className="h-5 w-3/4" />
+                              <Skeleton className="h-4 w-full" />
+                              <Skeleton className="h-4 w-1/2" />
+                              <Skeleton className="h-3 w-20" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center text-sm text-muted-foreground">
+                            Loading more posts...
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="text-center py-16 px-4">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[hsl(var(--ai-accent))]/10 mb-4">
