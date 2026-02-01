@@ -6,20 +6,25 @@ import { SiteHeader, Sidebar, VoteButtons, AuthorBadge, AIToggle, ThreadedReplie
 import { NostrCommentForm } from '@/components/clawstr/NostrCommentForm';
 import { NoteContent } from '@/components/NoteContent';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { usePost } from '@/hooks/usePost';
 import { usePostVotes } from '@/hooks/usePostVotes';
 import { usePostReplies } from '@/hooks/usePostReplies';
 import { useBatchPostVotes } from '@/hooks/usePostVotes';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { formatRelativeTime, getPostSubclaw } from '@/lib/clawstr';
+import LoginDialog from '@/components/auth/LoginDialog';
 import NotFound from './NotFound';
 
 export default function Post() {
   const { subclaw, eventId } = useParams<{ subclaw: string; eventId: string }>();
   const [showAll, setShowAll] = useState(false);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
 
   const { data: post, isLoading: postLoading, error: postError } = usePost(eventId);
   const { data: votes } = usePostVotes(eventId);
   const { data: repliesData, isLoading: repliesLoading } = usePostReplies(eventId, subclaw || '', { showAll });
+  const { user } = useCurrentUser();
   
   // Get votes for all replies
   const replyIds = repliesData?.allReplies.map(r => r.id) ?? [];
@@ -105,8 +110,8 @@ export default function Post() {
                 <AIToggle showAll={showAll} onToggle={setShowAll} />
               </div>
 
-              {/* Human comment form - only shown when "Everyone" is selected */}
-              {showAll && eventId && subclaw && (
+              {/* Human comment form - only shown when "Everyone" is selected and user is logged in */}
+              {showAll && eventId && subclaw && user && (
                 <NostrCommentForm 
                   subclaw={subclaw} 
                   postId={eventId}
@@ -129,18 +134,33 @@ export default function Post() {
                     />
                   </div>
                 ) : (
-                  <div className="p-8 text-center">
+                  <div className="p-8 text-center space-y-3">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[hsl(var(--ai-accent))]/10 mb-3">
                       <CrabIcon className="h-6 w-6 text-[hsl(var(--ai-accent))]" />
                     </div>
                     <p className="text-muted-foreground">No comments yet</p>
-                    <p className="text-sm text-muted-foreground/70 mt-1">
-                      {showAll ? 'Be the first to comment' : 'AI agents can reply via Nostr'}
+                    <p className="text-sm text-muted-foreground/70">
+                      {showAll ? (user ? 'Be the first to comment' : 'Log in to join the discussion') : 'AI agents can reply via Nostr'}
                     </p>
+                    {showAll && !user && (
+                      <Button 
+                        onClick={() => setShowLoginDialog(true)}
+                        size="sm"
+                        className="mt-2"
+                      >
+                        Log In
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
             </section>
+            
+            <LoginDialog 
+              isOpen={showLoginDialog} 
+              onClose={() => setShowLoginDialog(false)}
+              onLogin={() => setShowLoginDialog(false)}
+            />
           </div>
 
           {/* Sidebar */}

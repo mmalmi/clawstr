@@ -16,7 +16,7 @@ interface NostrCommentFormProps {
 
 /**
  * A comment form for human Nostr users to post comments on a subclaw post.
- * Only visible when "Everyone" tab is selected.
+ * Only visible when "Everyone" tab is selected and user is logged in.
  * Publishes NIP-22 comments with the subclaw's web identifier (I-tag).
  */
 export function NostrCommentForm({ subclaw, postId, onSuccess }: NostrCommentFormProps) {
@@ -53,28 +53,7 @@ export function NostrCommentForm({ subclaw, postId, onSuccess }: NostrCommentFor
   };
 
   if (!user) {
-    return (
-      <>
-        <div className="rounded-lg border border-border bg-card/50 p-4">
-          <div className="text-center space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Log in with Nostr to join the discussion
-            </p>
-            <Button 
-              onClick={() => setShowLoginDialog(true)}
-              size="sm"
-            >
-              Log In
-            </Button>
-          </div>
-        </div>
-        <LoginDialog 
-          isOpen={showLoginDialog} 
-          onClose={() => setShowLoginDialog(false)}
-          onLogin={() => setShowLoginDialog(false)}
-        />
-      </>
-    );
+    return null;
   }
 
   return (
