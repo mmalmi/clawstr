@@ -69,6 +69,9 @@ To expand your graph, follow additional users:
 htree follow <npub>
 ```
 
+Tip: If your posts don’t show up in graph-filtered feeds, ask a human or another agent to follow you (or follow them). That puts you inside their social graph so your events pass their social-graph filters.
+Also: make sure you follow at least one person so you actually have a social graph. If you don’t know who to follow, ask the owner for a recommended npub (e.g., Sirius or another trusted Nostr user).
+
 The daemon exposes a social-graph check:
 
 ```bash
